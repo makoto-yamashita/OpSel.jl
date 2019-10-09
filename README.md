@@ -41,7 +41,7 @@ OpSel.testEqual(200,50);
 ```
 Afther the execution, the summary will be reported as follows:
 ```
-SOCP = 26.155540, local_swap = 25.090400, gap = 4.072330%
+SOCP = 26.155540, STEEP = 25.090400, gap = 4.072330%
 time(s): build = 0.016, solver = 0.088, steep = 0.820, total = 0.925
 ```
 The objective value of the SOCP relaxation is 26.155540, and the objective value after the steepst-ascent method is 25.090440.
