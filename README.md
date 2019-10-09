@@ -15,7 +15,7 @@ Using a conic programming approach, this package provides efficient numerical me
 
 ## Usage
 
-The dataset of the package includes the sizes of Z = 200, 1050, 2045, 5050, 5255, 10100, 15100, and 15222.
+The dataset of the package includes the sizes of Z = 200, 1050, 2045, 5050, 5255, 10100, 15100, and 15222; and N = 50 and 100.
 
 1. To execute the compact SOCP formulation with the dataset of the package (for <a href="https://www.codecogs.com/eqnedit.php?latex=Z=2045" target="_blank"><img src="https://latex.codecogs.com/gif.latex?Z=2045" title="Z=2045" /></a>)
 ```
@@ -49,6 +49,23 @@ The gap is computed from these two objective values.
 The exact optimal value must be between these two objective values, thus if the gap is 0, we can obtain the exact optimal value.
 In the computation time, steep corresponds to the steepest-ascent part.
 
+3. If an input CSV file is available, the methods can be executed as follows:
+
+```
+sp_csv = OpSel.loadFile(filename)
+(x_result, info_result) = OpSel.compactSOCP(sp_csv)
+```
+or
+```
+sp_csv = OpSel.loadFile(filename)
+(x_result, info_result) = OpSel.steepestAscent(sp_csv, N=50)
+```
+
+The columns of the input CSV file should be:
+```i(id), p(parent1), p(parent2), g(EBV), u(upperbound), h(inbreeding)```
+For example, the following line in a CSV
+```1040, 782, 751, 3.1313800000000001, 50, 0.0410156250000000```
+indicates that the parents of 1040 are 782 and 751. The EBV of 1040 is 3.13138, and the upperbound is 50 (this will be divided by 2800) and the inbreeding value is 0.041015625.
 
 ## Basic Formulation
 
@@ -70,11 +87,8 @@ An equally-type of optimization problem is of form:
 Here, <a href="https://www.codecogs.com/eqnedit.php?latex=N" target="_blank"><img src="https://latex.codecogs.com/gif.latex?N" title="N" /></a> is the given parameter, thus each genotype should contribute nothing <a href="https://www.codecogs.com/eqnedit.php?latex=0" target="_blank"><img src="https://latex.codecogs.com/gif.latex?0" title="0" /></a> or the same amount <a href="https://www.codecogs.com/eqnedit.php?latex=\frac{1}{N}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\frac{1}{N}" title="\frac{1}{N}" /></a>.
 
 
-For more details, please refer to the two papers below at "Papers."
-
 For optimal selection problems, GENCONT by Meuwissen (http://www.genebankdata.cgn.wur.nl/gencont/gencont.html) is often used. The main advantage of this package is its computation speed. The compact SOCP formulation is also available through OPSEL (https://www.skogforsk.se/opsel/)
-
-
+For more details, please refer to the two papers below at "Papers."
 
 ## Papers
 The two methods were proposed in the two papers below.
@@ -109,10 +123,14 @@ url = "http://www.sciencedirect.com/science/article/pii/S0166218X19304184"
 }
 ```
 
-## Note
-
-1. Ipopt, ECOS
-2. Quaas algorithm
-
 ## Data
+
+The datasets with sizes 2045 and 15222 were avaiable at the Dryad Digital Repository (http://dx.doi.org/10.5061/dryad.9pn5m). The other
+data were produced with POPSIM (https://www.skogforsk.se/popsim/). 
+
+## Notes
+
+1. In the two papers above, ECOS (https://github.com/JuliaOpt/ECOS.jl) was used as the SOCP solver. However, recent versions of ECOS was not numerically stable for optimal selection problems. Instead, Ipopt (https://github.com/JuliaOpt/Ipopt.jl) is used in this package.
+2. The inbreeding value (the last column of the input CSV file) was computed by Quaas's algorithm
+  - R. L. Quaas, "Computing the diagonal elements and inverse of a large numerator relationship matrix," Biometrics, Vol. 32, pp. 949–953, 1976.
 
