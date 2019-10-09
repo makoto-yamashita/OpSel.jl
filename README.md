@@ -15,6 +15,41 @@ Using a conic programming approach, this package provides efficient numerical me
 
 ## Usage
 
+The dataset of the package includes the sizes of Z = 200, 1050, 2045, 5050, 5255, 10100, 15100, and 15222.
+
+1. To execute the compact SOCP formulation with the dataset of the package (for <a href="https://www.codecogs.com/eqnedit.php?latex=Z=2045" target="_blank"><img src="https://latex.codecogs.com/gif.latex?Z=2045" title="Z=2045" /></a>)
+```
+Using OpSel
+OpSel.testUnequal(2045);
+```
+Afther the execution of Ipopt, the summary will be reported as follows:
+```
+=== Result Summary ===
+JuMP status = LOCALLY_SOLVED
+Z = 2045, N_s = 14, N = 2800
+gx = 439.116285, xAx = 0.071429, 2theta = 0.071429
+time(s): build = 0.049, solver = 1.392, total = 1.441
+```
+The obtained objective value is <a href="https://www.codecogs.com/eqnedit.php?latex=g^T&space;x" target="_blank"><img src="https://latex.codecogs.com/gif.latex?g^T&space;x" title="g^T x" /></a>=439.116825, and we can see that the quadratic constraint <a href="https://www.codecogs.com/eqnedit.php?latex=x^T&space;A&space;x&space;\le&space;2&space;\theta" target="_blank"><img src="https://latex.codecogs.com/gif.latex?x^T&space;A&space;x&space;\le&space;2&space;\theta" title="x^T A x \le 2 \theta" /></a> is satisfied.
+The computation time to build the SOCP is 0.049 seconds, the time by Ipopt is 1.392 seconds, and the entire time is 1.441 seconds.
+
+
+2. To execute the steepest-ascent method with the dataset of the package (for <a href="https://www.codecogs.com/eqnedit.php?latex=Z=200,&space;N=50" target="_blank"><img src="https://latex.codecogs.com/gif.latex?Z=200,&space;N=50" title="Z=200, N=50" /></a>)
+```
+Using OpSel
+OpSel.testEqual(200,50);
+```
+Afther the execution, the summary will be reported as follows:
+```
+SOCP = 26.155540, local_swap = 25.090400, gap = 4.072330%
+time(s): build = 0.016, solver = 0.088, steep = 0.820, total = 0.925
+```
+The objective value of the SOCP relaxation is 26.155540, and the objective value after the steepst-ascent method is 25.090440.
+The gap is computed from these two objective values.
+The exact optimal value must be between these two objective values, thus if the gap is 0, we can obtain the exact optimal value.
+In the computation time, steep corresponds to the steepest-ascent part.
+
+
 ## Basic Formulation
 
 An unequally-type of optimization problem is of form:
