@@ -1,6 +1,7 @@
 ![OpSel](https://github.com/makoto-yamashita/OpSel.jl/blob/logo-registration/logo/opsel-logo.png)
 
 ![travis](https://travis-ci.org/makoto-yamashita/OpSel.jl.svg?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/makoto-yamashita/OpSel.jl/badge.svg?branch=master)](https://coveralls.io/github/makoto-yamashita/OpSel.jl?branch=master)
 
 # OpSel.jl
 Efficient optimal selection for tree breeding
