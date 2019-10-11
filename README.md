@@ -13,6 +13,10 @@ Using a conic programming approach, this package provides efficient numerical me
 
 ```import Pkg; Pkg.add("OpSel")```
 
+or in the package mode by `]`,
+
+```pkg> https://github.com/makoto-yamashita/OpSel.jl```
+
 ## Usage
 
 The dataset of the package includes the sizes of Z = 200, 1050, 2045, 5050, 5255, 10100, 15100, and 15222; and N = 50 and 100.
