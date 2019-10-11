@@ -126,7 +126,7 @@ url = "http://www.sciencedirect.com/science/article/pii/S0166218X19304184"
 ## Data
 
 The datasets with sizes 2045 and 15222 were avaiable at the Dryad Digital Repository (http://dx.doi.org/10.5061/dryad.9pn5m). The other
-data were produced with POPSIM (https://www.skogforsk.se/popsim/). In each dataset, the candidates are sorted so that all the ids are sequential numbers.
+data were produced with POPSIM (https://www.skogforsk.se/popsim/). 
 
 ## Notes
 

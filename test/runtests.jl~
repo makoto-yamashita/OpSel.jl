@@ -1,0 +1,6 @@
+using OpSel
+using Test
+
+@testset "OpSel.jl" begin
+    # Write your own tests here.
+end
