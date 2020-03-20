@@ -1,6 +1,11 @@
 /*--------------------------------------*/
 /*--------------------------------------*/
 /*  Tree Computation by SOCP            */
+/*  Copyright: Makoto Yamashita         */
+/*   2014-2020                          */
+/*  Makoto.Yamashita@is.titech.ac.jp    */
+/*  This file is distributed            */
+/*             under the MIT license.   */
 /*--------------------------------------*/
 /*--------------------------------------*/
 
@@ -19,8 +24,24 @@
 using namespace std;
 
 #define message(msg) {cout << msg << " at line: " << __LINE__ << " file: " << __FILE__ << endl;}
+#define DEBUG_LEVEL       0
+#define DEBUG_FILEIO     10
+#define DEBUG_A_CHECK     8
+#define DEBUG_INBREEDING  5
 #define EXIT_ERROR (-1)
 #define MAX_CHARACTER 1024
+
+
+// if FULL_MATRIX_CHECK==1 && NON_SPARSE==1, dense format is used for Ainv
+// if FULL_MATRIX_CHECK==1 && NON_SPARSE==0, dense and sparse are computed to check sparse format
+// if FULL_MATRIX_CHECK==0 && NON_SPARSE==0, sparse format is used for Ainv
+
+#ifndef FULL_MATRIX_CHECK
+#define FULL_MATRIX_CHECK 0
+#endif
+#ifndef NON_SPARSE
+#define NON_SPARSE 0
+#endif
 
 void setTimeVal(struct timeval& targetVal)
 {
@@ -43,11 +64,10 @@ double getRealTime(const struct timeval& start,
 #define TimeCal(START__,END__) getRealTime(START__,END__)
 
 
-void usage(char* argv0)
+void usage()
 {
-  cout << "Usage   : " << argv0 << " flagLowerbound N_s N inputfile outputfile ecos-wrapper ecos-input ecos-info ecos-x ecos-y ecos-z" << endl;
-  cout << "Example : " << argv0 << " 0 14 2800 sP_limited_F1s.csv sP_limited_F1s-result.csv ecos-wrapper.exe ecos-input.txt ecos-info.txt ecos-x.txt ecos-y.txt ecos-z.txt" << endl;
-  cout << " +++++++  flagLowerbound -> 0 (lowerbound is 0) or  1 (lowerbound is the last column of inputfile)" << endl;
+  cout << "Usage   : treesocp2.exe N_s N inputfile outputfile" << endl;
+  cout << "Example : treesocp2.exe 14 2800 sorted002045.csv sorted002045-result.csv" << endl;
 }
 
 
@@ -65,14 +85,14 @@ public:
   double lowerbound;
   double upperbound;
   double contribution;
+  double inbreeding;
 
-  idxint print() {
+  void print() {
     printf("id = %ld, mother = %ld, father = %ld, coeffcient = %e, lb = %e, ub = %e\n",
 	   id, mother, father, coefficient, lowerbound, upperbound);
     printf("orig_id = %ld, orig_place = %ld, orig_mother = %ld, orig_father = %ld\n",
 	   original_id, original_place, original_mother, original_father);
-    printf("contribution = %e\n", contribution);
-
+    printf("contribution = %e, inbreeding = %e\n", contribution, inbreeding);
   }
 
   // for sorting by original_id
@@ -129,69 +149,42 @@ void multi_Ainv_x(idxint n, idxint* Ainv_jc, idxint* Ainv_ir, pfloat* Ainv_pr,
 int main(int argc, char** argv)
 {
   TimeStart(MAIN_START);
-  if (argc != 12) {
+  if (argc != 5) {
     cout << "---------- Error!! Usage is not correct -------------" << endl;
-    cout << "---  argc is now " << argc << ", but it should be 12 --" << endl;
-    usage(argv[0]);
+    cout << "---  argc is now " << argc << ", but it should be 5 --" << endl;
+    usage();
     exit(EXIT_ERROR);
   }
-
-  int argIndex = 0;
   
-  argIndex++;
-  int flagLowerbound = -1; // dummy initialize
-  if (sscanf(argv[argIndex], "%d", &flagLowerbound) == 0) {
-    cout << "Error!! cannot read integer flagLowerbound from " << argv[argIndex] << endl;
-    usage(argv[0]);
-    exit(EXIT_ERROR);
-  }
-  if (flagLowerbound != 0 && flagLowerbound != 1) {
-    cout << "Error!! flagLowerbound should be 0 or 1" << endl;
-    usage(argv[0]);
-    exit(EXIT_ERROR);
-  }
-
-  argIndex++;
-  double N_s = 0; // dummy initialize
-  if (sscanf(argv[argIndex], "%lf", &N_s) == 0) {
-    cout << "Error!! cannot read floating-number N_s from " << argv[argIndex] << endl;
-    usage(argv[0]);
+  idxint N_s = 0; // dummy initialize
+  if (sscanf(argv[1], "%d", &N_s) == 0) {
+    cout << "Error!! cannot read integer N_s from " << argv[1] << endl;
+    usage();
     exit(EXIT_ERROR);
   }
   double theta = 0.5/N_s;
 
-  argIndex++;
   int Nint = 0; // dummy initialize
-  if (sscanf(argv[argIndex], "%d", &Nint) == 0) {
-    cout << "Error!! cannot read integer N from " << argv[argIndex] << endl;
-    usage(argv[0]);
+  if (sscanf(argv[2], "%d", &Nint) == 0) {
+    cout << "Error!! cannot read integer N from " << argv[2] << endl;
+    usage();
     exit(EXIT_ERROR);
   }
   idxint N = Nint;
-  printf("flagLowerbound = %d, N_s = %lf, theta = %e, N = %d\n", flagLowerbound, N_s, theta, N);
+  printf("N_s = %d, theta = %e, N = %d\n", N_s, theta, N);
 
-  argIndex++;
-  char* filename_input = argv[argIndex];
+  char* filename_input = argv[3];
   FILE* fp_input = fopen(filename_input, "r");
   if (fp_input == NULL) {
     cout << "Error!! cannot open " << filename_input << endl;
     exit(EXIT_ERROR);
   }
-  argIndex++;
-  char* filename_output = argv[argIndex];
+  char* filename_output = argv[4];
   FILE* fp_output = fopen(filename_output, "w");
   if (fp_output == NULL) {
     cout << "Error!! cannot open " << filename_output << endl;
     exit(EXIT_ERROR);
   }
-  argIndex++; char* ecos_wrapper = argv[argIndex];
-  argIndex++; char* ecos_input   = argv[argIndex];
-  argIndex++; char* ecos_info    = argv[argIndex];
-  argIndex++; char* ecos_x       = argv[argIndex];
-  argIndex++; char* ecos_y       = argv[argIndex];
-  argIndex++; char* ecos_z       = argv[argIndex];
-
-  printf("All arguments are analyzed (argIndex = %d)\n", argIndex);
 
   printf("Reading %s ...\n", filename_input);
   vector<oneLine*> readLines;
@@ -205,12 +198,12 @@ int main(int argc, char** argv)
     }
     readLineCount++;
     if (readline[0] < '0' || readline[0] > '9') {
-      #if 0
+      #if DEBUG_LEVEL > 0
 	printf("Line %ld is comment, skip\n", readLineCount);
       #endif
       continue;
     }
-    #if 0
+    #if DEBUG_LEVEL > DEBUG_FILEIO 
       printf("Read [%ld] => %s\n", readLineCount, readline);
     #endif
     oneLine* oneline = new oneLine;
@@ -220,6 +213,7 @@ int main(int argc, char** argv)
     oneline->father = -1; //dummy initialize;
     oneline->lowerbound   = 0.0;
     oneline->contribution = 0.0;
+    oneline->inbreeding = 0.0; // dummy initialize;
     idxint tokenCount = 0;
     char* token = NULL;
     token = strtok(readline,",");
@@ -247,32 +241,23 @@ int main(int argc, char** argv)
       oneline->upperbound = atof(token);
       tokenCount++;
     }
-    if (flagLowerbound == 1) {
-      token = strtok(NULL,",");
-      if (token != NULL) {
-	oneline->lowerbound = atof(token);
-	#if 0
-	if (oneline->lowerbound != 0.0) {
-	  printf("Found !! Line = %d, lb = %e \n",
-		 readLineCount, oneline->lowerbound);
-	}
-	#endif
-	tokenCount++;
-      }
+    token = strtok(NULL,",");
+    if (token != NULL) {
+      oneline->contribution = atof(token);
+      tokenCount++;
     }
-      
-    if (flagLowerbound == 0 && tokenCount != 5) {
-      printf("Skip Line %ld, anayalized faled, tokenCount = %ld (should be 5) \n", readLineCount, tokenCount);
-      delete oneline;
-      continue;
+    token = strtok(NULL,",");
+    if (token != NULL) {
+      oneline->inbreeding = atof(token);
+      tokenCount++;
     }
-    if (flagLowerbound == 1 && tokenCount != 6) {
-      printf("Skip Line %ld, anayalized faled, tokenCount = %ld (should be 6) \n", readLineCount, tokenCount);
+    if (tokenCount != 6) {
+      printf("Skip Line %ld, anayalized failed, tokenCount = %ld\n", readLineCount, tokenCount);
       delete oneline;
       continue;
     }
 
-    #if 0
+    #if DEBUG_LEVEL >= DEBUG_FILEIO
       printf("Readline %ld as --> \n", readLineCount);
       oneline->print();
     #endif
@@ -340,6 +325,15 @@ int main(int argc, char** argv)
 	  break;
 	}
       }
+      // Following check is unnecessay
+      #if 0
+      if (lower > upper) {
+	  printf("ERROR: Mother information of Item [%ld] : %ld cannot found\n",
+		 oneline->original_id, oneline->original_mother);
+	  oneline->print();
+	  exit(EXIT_ERROR);
+      }
+      #endif
     }
 
 
@@ -371,24 +365,38 @@ int main(int argc, char** argv)
 	  break;
 	}
       }
+      // Following check is unnecessay
+      #if 0
+      if (lower > upper) {
+	  printf("ERROR: Father information of Item [%d] : %d cannot found\n",
+		 oneline->original_id, oneline->original_father);
+	  oneline->print();
+	  exit(EXIT_ERROR);
+      }
+      #endif
     }
+
+
+
   }  // End of   Assign the sorted mother and father by binary search
  
   printf("Data consitency has been checked.\n");
   
-  #if 0
+  #if DEBUG_LEVEL>DEBUG_FILEIO
   for (idxint index1=0; index1<Z; ++index1) {
     readLines[index1]->print();
   }
   #endif
 
-  printf("Computing inbreeding coefficients ...\n");
+  printf("Setting inbreeding coefficients ...\n");
 
   double* inbreeding = new double[Z];
+  for (idxint index1=0; index1<Z; ++index1) {
+    inbreeding[index1] = readLines[index1]->inbreeding;
+  }
 
-  printf("This part is not available now.");
 
-#if 0
+#if DEBUG_LEVEL >= DEBUG_INBREEDING
   printf("inbreeding = \n");
   for (idxint index1 = 0; index1 < Z; ++index1) {
     printf("%e ", inbreeding[index1]);
@@ -407,10 +415,97 @@ int main(int argc, char** argv)
   idxint Ainv_nnz   = 0;
   idxint Ainv_index = 0;
 
+  #if FULL_MATRIX_CHECK
+  TimeStart(BEFORE_AINV);
+  printf("Costructing Ainv ...\n");
+  printf("Currently, fully dense matrix (%ld x %ld) is used\n", Z, Z);
+  double* Ainv_full = new double [Z*Z];
+  for (idxint index1=0; index1< Z*Z; ++index1) {
+    Ainv_full[index1] = 0.0;
+  }
+
+  for (idxint index1=0; index1<Z; ++index1) {
+    oneLine* oneline = readLines[index1];
+    idxint mother = oneline->mother;
+    idxint father = oneline->father;
+    
+    if (mother >= 0 && father >= 0) {
+      const double b = 4.0 / ((1-inbreeding[mother]) + (1-inbreeding[father]));
+      Ainv_full[index1 + index1 * Z] += 1.0*b;
+      Ainv_full[mother + index1 * Z] -= 0.5*b;
+      Ainv_full[index1 + mother * Z] -= 0.5*b;
+      Ainv_full[father + index1 * Z] -= 0.5*b;
+      Ainv_full[index1 + father * Z] -= 0.5*b;
+      Ainv_full[mother + mother * Z] += 0.25*b;
+      Ainv_full[mother + father * Z] += 0.25*b;
+      Ainv_full[father + mother * Z] += 0.25*b;
+      Ainv_full[father + father * Z] += 0.25*b;
+    }
+    else if (mother >= 0 && father < 0) {
+      // since mother >= father, 
+      // the case (mother < 0 && father >= 0) cannot happen
+      const double b = 4.0 / (1.0*(1-inbreeding[mother]) + 2.0*(1-0));
+      Ainv_full[index1 + index1 * Z] += 1.0*b;
+      Ainv_full[mother + index1 * Z] -= 0.5*b;
+      Ainv_full[index1 + mother * Z] -= 0.5*b;
+      Ainv_full[mother + mother * Z] += 0.25*b;
+    }
+    else {
+      // the case (mother < 0 && father < 0)
+      const double b = 4.0 / (2.0*(1-0) + 2.0*(1-0));
+      Ainv_full[index1 + index1 * Z] += 1.0*b;
+    }
+  } 
+  TimeEnd(AFTER_AINV);
+  printf("Computing Ainv required %.3lf seconds\n", TimeCal(BEFORE_AINV,AFTER_AINV));
+
+  TimeStart(BEFORE_CONVERT_AINV);
+  printf("Converting dense Ainv to sparse Ainv... \n");
   idxint* Ainv_jc = NULL;
   idxint* Ainv_ir = NULL;
   pfloat* Ainv_pr = NULL;
 
+  Ainv_jc = new idxint[Z+1];
+
+  Ainv_jc[0] = 0;
+  for (idxint j=0; j<Z; ++j) {
+    for (idxint i=0; i<Z; ++i) {
+      if (Ainv_full[Ainv_index] != 0.0) {
+	Ainv_nnz++;
+      }
+      Ainv_index++;
+    }
+    Ainv_jc[j+1] = Ainv_nnz;
+  }
+  
+  Ainv_ir = new idxint[Ainv_nnz];
+  Ainv_pr = new pfloat[Ainv_nnz];
+
+  Ainv_jc[0] = 0;
+  Ainv_nnz   = 0;
+  Ainv_index = 0;
+  for (idxint j=0; j<Z; ++j) {
+    for (idxint i=0; i<Z; ++i) {
+      if (Ainv_full[Ainv_index] != 0.0) {
+	Ainv_ir[Ainv_nnz] = i;
+	Ainv_pr[Ainv_nnz] = Ainv_full[Ainv_index];
+	Ainv_nnz++;
+      }
+      Ainv_index++;
+    }
+    Ainv_jc[j+1] = Ainv_nnz;
+  }
+
+  TimeEnd(AFTER_CONVERT_AINV);
+  printf("Converting Ainv required %.3lf seconds\n",
+	 TimeCal(BEFORE_CONVERT_AINV,AFTER_CONVERT_AINV));
+  #else // FULL_MATRIX_CHECK
+  idxint* Ainv_jc = NULL;
+  idxint* Ainv_ir = NULL;
+  pfloat* Ainv_pr = NULL;
+  #endif // FULL_MATRIX_CHECK
+
+  #if !NON_SPARSE
   TimeStart(BEFORE_AINV_SPARSE);
   printf("Constructing Ainv in the sparse format\n");
 
@@ -524,6 +619,14 @@ int main(int argc, char** argv)
     Ainv_sparse_jc[index1+1] = Ainv_sparse_jc[index1] + j_diff_count[index1];
   }
 
+  #if FULL_MATRIX_CHECK
+  for (idxint index1=0; index1 < Z+1; ++index1) {
+    if (Ainv_jc[index1] != Ainv_sparse_jc[index1]) {
+      printf("Error Ainv_jc[%ld]=%ld, but Ainv_sparse_jc[%ld]=%ld\n",
+	     index1, Ainv_jc[index1], index1, Ainv_sparse_jc[index1]);
+    }
+  }
+  #endif
   Ainv_nnz = Ainv_sparse_jc[Z];
   idxint* Ainv_sparse_ir = new idxint[Ainv_nnz];
   pfloat* Ainv_sparse_pr = new pfloat[Ainv_nnz];
@@ -548,19 +651,52 @@ int main(int argc, char** argv)
       index2 = index3;
     }
   }
+  #endif // !NON_SPARSE
 
+  #if FULL_MATRIX_CHECK && !NON_SPARSE
 
+  printf("Comparing dense and sparse format...\n");
+  for (idxint index1=0; index1 < Z+1; ++index1) {
+    if (Ainv_jc[index1] != Ainv_sparse_jc[index1]) {
+      printf("Error Ainv_jc[%ld]=%ld, but Ainv_sparse_jc[%ld]=%ld\n",
+	     index1, Ainv_jc[index1], index1, Ainv_sparse_jc[index1]);
+    }
+  }
+
+  for (idxint index1=0; index1 < Ainv_nnz; ++index1) {
+    if (Ainv_ir[index1] != Ainv_sparse_ir[index1]) {
+      printf("Error Ainv_ir[%ld]=%ld, but Ainv_sparse_ir[%ld]=%ld\n",
+	     index1, Ainv_ir[index1], index1, Ainv_sparse_ir[index1]);
+    }
+  }
+
+  for (idxint index1=0; index1 < Ainv_nnz; ++index1) {
+    if (Ainv_pr[index1] - Ainv_sparse_pr[index1] > 1.0e-10
+	|| Ainv_pr[index1] - Ainv_sparse_pr[index1] < -1.0e-10) {
+      printf("Diff Ainv_pr[%ld]=%e, but Ainv_sparse_pr[%ld]=%e, diff = %e\n",
+	     index1, Ainv_pr[index1], index1, Ainv_sparse_pr[index1],
+	     Ainv_pr[index1] - Ainv_sparse_pr[index1]);
+    }
+  }
+  printf("Finished comparing.\n");
+  #endif
+
+  #if !NON_SPARSE
   TimeEnd(AFTER_AINV_SPARSE);
   printf("Constructing Ainv is %.3lf seconds\n",
 	 TimeCal(BEFORE_AINV_SPARSE, AFTER_AINV_SPARSE));
   Ainv_jc =   Ainv_sparse_jc;
   Ainv_ir =   Ainv_sparse_ir;
   Ainv_pr =   Ainv_sparse_pr;
-  #if 0 
-  printf("Ainv_nnz = %ld", Ainv_nnz);
   #endif
 
-  #if 0
+  
+  #if DEBUG_LEVEL > 0 
+  printf("Ainv_nnz = %ld", Ainv_nnz);
+
+  #endif
+
+  #if DEBUG_LEVEL >= DEBUG_A_CHECK
   for (idxint j=0; j<Z; ++j) {
     idxint Ainv_j_start = Ainv_jc[j];
     idxint Ainv_j_end   = Ainv_jc[j+1];
@@ -754,7 +890,7 @@ int main(int argc, char** argv)
   
   // printf("ecos_G_index = %ld\n", ecos_G_index);
   // printf("Ainv_nnz = %ld", Ainv_nnz);
-  #if 0 
+  #if 0 || DEBUG_LEVEL >= DEBUG_A_CHECK
   for (idxint j=0; j<Z+1; ++j) {
     idxint G_j_start = ecos_G_jc[j];
     idxint G_j_end   = ecos_G_jc[j+1];
@@ -774,141 +910,144 @@ int main(int argc, char** argv)
   }
   printf("}\n");
   printf("Ainv_nnz = %ld, G_nnz = %ld\n", Ainv_nnz, ecos_G_nnz);
-  printf("Writing SOCP data into ECOS format...\n");
-  fflush(stdout);
 
-  FILE* fp_socp = fopen(ecos_input, "w");
-  if (fp_socp == NULL) {
-    printf("Cannot open %s\n", ecos_input);
-    exit(-1);
+  #if 0 // To check the data with MATLAB
+  FILE* fp_csv;
+  fp_csv = fopen("test_Ainv.csv","w");
+  for (idxint j=0; j<Z; ++j) {
+    idxint Ainv_j_start = Ainv_jc[j];
+    idxint Ainv_j_end   = Ainv_jc[j+1];
+    for (idxint Ainv_index = Ainv_j_start; Ainv_index < Ainv_j_end; ++Ainv_index) {
+      idxint i = Ainv_ir[Ainv_index];
+      fprintf(fp_csv, "%ld,%ld,%.16e\n", i+1,j+1, Ainv_pr[Ainv_index]);
+    }
   }
+  fclose(fp_csv);
 
-  fprintf(fp_socp, "# n\n");
-  fprintf(fp_socp, "%ld\n", ecos_n);
-  fprintf(fp_socp, "# m\n");
-  fprintf(fp_socp, "%ld\n", ecos_m);
-  fprintf(fp_socp, "# p\n");
-  fprintf(fp_socp, "%ld\n", ecos_p);
-  fprintf(fp_socp, "# l\n");
-  fprintf(fp_socp, "%ld\n", ecos_l);
-  fprintf(fp_socp, "# ncones\n");
-  fprintf(fp_socp, "%ld\n", ecos_ncones);
-  fprintf(fp_socp, "# q\n");
-  fprintf(fp_socp, "%ld\n", ecos_q[0]); // only one cone
-  fprintf(fp_socp, "# c %ld\n", ecos_n);
-  for (idxint i=0; i<ecos_n; ++i) {
-    fprintf(fp_socp, "%.16e\n", ecos_c[i]);
+  fp_csv = fopen("test_G.csv","w");
+  for (idxint j=0; j<Z+1; ++j) {
+    idxint j_start = ecos_G_jc[j];
+    idxint j_end   = ecos_G_jc[j+1];
+    for (idxint j_index = j_start; j_index < j_end; ++j_index) {
+      idxint i = ecos_G_ir[j_index];
+      fprintf(fp_csv, "%ld,%ld,%.16e\n", i+1,j+1, ecos_G_pr[j_index]);
+    }
   }
-  fprintf(fp_socp, "# h\n");
-  for (idxint i=0; i<ecos_m; ++i) {
-    fprintf(fp_socp, "%.16e\n", ecos_h[i]);
+  fclose(fp_csv);
+
+  fp_csv = fopen("test_Ainve.csv", "w");
+  for (idxint j=0; j<Z; ++j) {
+    fprintf(fp_csv, "%.16e\n", Ainv_e[j]);
   }
-  fprintf(fp_socp, "# Gjc\n");
-  for (idxint i=0; i<ecos_n+1; ++i) {
-    fprintf(fp_socp, "%ld\n", ecos_G_jc[i]);
+  fclose(fp_csv);
+
+  fp_csv = fopen("test_c.csv", "w");
+  for (idxint j=0; j<Z + 1; ++j) {
+    fprintf(fp_csv, "%.16e\n", ecos_c[j]);
   }
-  fprintf(fp_socp, "# Gir\n");
-  for (idxint i=0; i<ecos_G_nnz; ++i) {
-    fprintf(fp_socp, "%ld\n", ecos_G_ir[i]);
+  fclose(fp_csv);
+
+  fp_csv = fopen("test_h.csv", "w");
+  for (idxint j=0; j<2 + Z+Z+1+1+1+Z; ++j) {
+    fprintf(fp_csv, "%.16e\n", ecos_h[j]);
   }
-  fprintf(fp_socp, "# Gpr\n");
-  for (idxint i=0; i<ecos_G_nnz; ++i) {
-    fprintf(fp_socp, "%.16e\n", ecos_G_pr[i]);
+  fclose(fp_csv);
+
+  fp_csv = fopen("test_coefficient.csv", "w");
+  for (idxint j=0; j<Z; ++j) {
+    fprintf(fp_csv, "%.16e\n", readLines[j]->coefficient);
   }
-  fprintf(fp_socp, "# Ajc\n"); // empty
-  fprintf(fp_socp, "# Air\n"); // empty
-  fprintf(fp_socp, "# Apr\n"); // empty
-  fprintf(fp_socp, "# b\n");  // empty
-#if 0
-  for (int i=0; i<ecos_p; ++i) {
-    fprintf(fp_socp, "%.16e\n", ecos_b[i]);
+  fclose(fp_csv);
+
+  #if 0
+  fp_csv = fopen("test_Ainv_full.csv", "w");
+  for (idxint i=0; i<Z; ++i) {
+    for (idxint j=0; j<Z-1; ++j) {
+      fprintf(fp_csv, "%e, ", Ainv_full[i+j*Z]);
+    }
+    fprintf(fp_csv, "%e\n", Ainv_full[i+(Z-1)*Z]);
   }
+  fclose(fp_csv);
+  #endif
+
 #endif
-  fclose(fp_socp);
+
   TimeEnd(CONVERT_END);
   printf("Time for conversion = %.3f\n", TimeCal(CONVERT_START, CONVERT_END));
-
+  
+  printf("--->Calling SOCP solver<---\n");
 
   TimeStart(ECOS_START);
-  char system_command[16384];
-  sprintf(system_command, "\"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", 
-	  ecos_wrapper, ecos_input, ecos_info, ecos_x, ecos_y, ecos_z);
-  printf("--->Calling SOCP solver<---\n");
-  printf("-->command<-- %s\n", system_command);
-  fflush(stdout);
-  system(system_command);
-
-  TimeEnd(ECOS_END);
-
-  printf("Time for solver = %.3f\n", TimeCal(ECOS_START, ECOS_END));
-
-  FILE* fp_x = fopen(ecos_x, "r");
-  pfloat* result_x = NULL;
-  result_x = new double[Z+1];
-  for (idxint index1=0; index1<Z+1; ++index1) {
-    char readline[MAX_CHARACTER];
-    fgets(readline, MAX_CHARACTER, fp_x);
-    sscanf(readline, "%lf", &result_x[index1]);
-  }
-
-  FILE* fp_info = fopen(ecos_info, "r");
-  char readlineInfo[MAX_CHARACTER];
-  fgets(readlineInfo, MAX_CHARACTER, fp_info);
-  char* token_info = strtok(readlineInfo,"=");
-  token_info = strtok(NULL, "=");
-  int exitflag = atoi(token_info);
-  printf("===> Ecos Status = %d : (", exitflag);
-  switch(exitflag) {
-  case 0: printf("optimal"); break;
-  case 1: printf("primal-infeasible"); break;
-  case 2: printf("dual-infeasible"); break;
-  case -1: printf("maximum-iteration"); break;
-  case -2: printf("numerical-problem[search direction]"); break;
-  case -3: printf("numerical-problem[exterior]"); break;
-  case -7: printf("unknwon problem"); break;
-  default: printf("Cannot read Ecos Status \n"); break;
-  }
-  printf(") <===\n");
-
-  fclose(fp_info);
-
-  double* contributions = new double[Z];
-  double objective_value = 0.0;
-  if (exitflag >= -3 && exitflag <= 2) {
-    printf("Converting solutions ...\n");
-    multi_Ainv_x(Z, Ainv_jc, Ainv_ir, Ainv_pr, result_x, contributions);
-
-    for (idxint index1=0; index1<Z; ++index1) {
-      readLines[index1]->contribution = contributions[index1];
-#if 0
-      if (contributions[index1] > 1.0e-5) {
-	printf("contributions[%ld] = %e\n", index1, contributions[index1]);
-      }
+  idxint exitflag = ECOS_FATAL;
+  pwork* ecos_work = NULL;
+#if PROFILING > 0
+  double ttotal, tsolve, tsetup;
 #endif
-    }
+#if PROFILING > 1
+  double torder, tkktcreate, ttranspose, tfactor, tkktsolve;
+#endif
 
-    sort(readLines.begin(), readLines.end(), oneLine::compare_back);
-    printf("Writing solutions to %s ...\n", filename_output);
-    for (idxint index1=0; index1 < ecos_n; ++index1) {
-      objective_value += (-ecos_c[index1])*result_x[index1];
+  /* set up data */
+  ecos_work = ECOS_setup(ecos_n, ecos_m, ecos_p, ecos_l, ecos_ncones, ecos_q, 
+			 ecos_G_pr, ecos_G_jc, ecos_G_ir, NULL, NULL, NULL,
+			 ecos_c, ecos_h, NULL);
+  if ( ecos_work == NULL) {
+    printf("ERROR :: ECOS_setup failed\n");
+  }
+  if ( ecos_work != NULL) {
+    /* solve */
+    exitflag = ECOS_solve(ecos_work);
+  }
+  TimeEnd(ECOS_END);
+  printf("Time for solver = %.3f\n", TimeCal(ECOS_START, ECOS_END));
+  
+  printf("Converting solutions ...\n");
+  #if 0
+  for (idxint index1=0; index1<Z+1; ++index1) {
+    printf("x[%ld] = %e\n", index1, ecos_work->x[index1]);
+  }
+  fp_csv = fopen("test_ecos_x.csv", "w");
+  fprintf(fp_csv, "a.txt\n");
+  for (idxint j=0; j<Z+1; ++j) {
+    fprintf(fp_csv, "%.16e\n", ecos_work->x[j]);
+  }
+  fclose(fp_csv);
+  #endif
+  double* contributions = new double[Z];
+  multi_Ainv_x(Z, Ainv_jc, Ainv_ir, Ainv_pr, ecos_work->x, contributions);
+
+  for (idxint index1=0; index1<Z; ++index1) {
+    readLines[index1]->contribution = contributions[index1];
+    #if 0
+    if (contributions[index1] > 1.0e-5) {
+      printf("contributions[%ld] = %e\n", index1, contributions[index1]);
     }
-    fprintf(fp_output, "# Objective Value = %e\n", objective_value);
-    for (idxint index1=0; index1<Z; ++index1) {
-      double adjust = N * readLines[index1]->contribution;
-      if (adjust >= -1.0e-7 && adjust < 1.0e-7) {
-	adjust = 0.0;
-      }
-      if (adjust != 0) {
-	fprintf(fp_output, "%ld, %e\n", 
-		readLines[index1]->original_id, adjust);
-      }
-      else {
-	fprintf(fp_output, "%ld, 0.0\n", 
-		readLines[index1]->original_id);
-      }
+    #endif
+  }
+
+  sort(readLines.begin(), readLines.end(), oneLine::compare_back);
+  printf("Writing solutions to %s ...\n", filename_output);
+  double objective_value = (-1)*(ecos_work->info->pcost);
+  fprintf(fp_output, "# Objective Value = %e\n", objective_value);
+  for (idxint index1=0; index1<Z; ++index1) {
+    double adjust = N * readLines[index1]->contribution;
+    if (adjust >= -1.0e-7 && adjust < 1.0e-7) {
+      adjust = 0.0;
     }
-    fclose(fp_output);
-  } // if (exitflag >= -3 && exitflag <= 2)
+    if (adjust != 0) {
+      fprintf(fp_output, "%ld, %e\n", 
+	      readLines[index1]->original_id, adjust);
+    }
+    else {
+      fprintf(fp_output, "%ld, 0.0\n", 
+	      readLines[index1]->original_id);
+    }
+  }
+  if ( ecos_work != NULL) {
+    /* clean up memory */
+    ECOS_cleanup(ecos_work, 0);
+  }
+  fclose(fp_output);
 
   printf("Freeing all memory space ... \n");
   // Free all memories
@@ -916,11 +1055,11 @@ int main(int argc, char** argv)
   for (idxint index1=0; index1<Z; ++index1) {
     delete readLines[index1];
   }
-  delete[] result_x;
   delete[] inbreeding;
-  delete[] point;
-  delete[] D;
-  delete[] L;
+  #if FULL_MATRIX_CHECK
+  delete[] Ainv_full;
+  #endif
+  #if !NON_SPARSE
   for (idxint index1=0; index1<Z; ++index1) {
     vector<j_element*>& A_j = A_add[index1];
     idxint length = A_j.size();
@@ -930,6 +1069,7 @@ int main(int argc, char** argv)
   }
   delete[] A_add;
   delete[] j_diff_count;
+  #endif
 
   delete[] Ainv_jc;
   delete[] Ainv_ir;
@@ -949,7 +1089,6 @@ int main(int argc, char** argv)
   printf("--->Finish<----- \n");
 
   printf("Objective value is %e\n", objective_value);
-
   TimeEnd(MAIN_END);
   printf("Time for conversion = %.3f\n", TimeCal(CONVERT_START, CONVERT_END));
   printf("Time for solver = %.3f\n", TimeCal(ECOS_START, ECOS_END));
