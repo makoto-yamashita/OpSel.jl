@@ -18,7 +18,7 @@ Using a conic programming approach, this package provides efficient numerical me
 
 or in the package mode by `]`,
 
-```pkg> https://github.com/makoto-yamashita/OpSel.jl```
+```pkg> add https://github.com/makoto-yamashita/OpSel.jl```
 
 ## Usage
 
@@ -117,13 +117,14 @@ pages="1683--1697"
 ```
   
 2. the steepest-ascent method for equally deployment problem
-  - Sena Safarina, Satoko Moriguchi, Tim J. Mullin, and Makoto Yamashita, "Conic relaxation approaches for equal deployment problems," To appear in Discrete Applied Mathematics, 2019. https://www.sciencedirect.com/science/article/pii/S0166218X19304184
-
+  - Sena Safarina, Satoko Moriguchi, Tim J. Mullin, and Makoto Yamashita, "Conic relaxation approaches for equal deployment problems," 
 ```
-@article{SAFARINA2019,
+@article{Safarina2020,
 title = "Conic relaxation approaches for equal deployment problems",
 journal = "Discrete Applied Mathematics",
-year = "2019",
+volume = "275", 
+pages = "111--125",
+year = "2020",
 issn = "0166-218X",
 doi = "https://doi.org/10.1016/j.dam.2019.04.032",
 url = "http://www.sciencedirect.com/science/article/pii/S0166218X19304184"
