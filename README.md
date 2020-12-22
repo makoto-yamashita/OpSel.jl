@@ -117,7 +117,7 @@ pages="1683--1697"
 ```
   
 2. the steepest-ascent method for equally deployment problem
-  - Sena Safarina, Satoko Moriguchi, Tim J. Mullin, and Makoto Yamashita, "Conic relaxation approaches for equal deployment problems," 
+  - Sena Safarina, Satoko Moriguchi, Tim J. Mullin, and Makoto Yamashita, "Conic relaxation approaches for equal deployment problems," Discrete Applied Mathematics, Vol. 275, pp. 111--125, 2020. http://www.sciencedirect.com/science/article/pii/S0166218X19304184
 ```
 @article{Safarina2020,
 title = "Conic relaxation approaches for equal deployment problems",
