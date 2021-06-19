@@ -142,6 +142,3 @@ data were produced with POPSIM (https://www.skogforsk.se/popsim/). In each datas
 2. The inbreeding value (the last column of the input CSV file) was computed by Quaas's algorithm
   - R. L. Quaas, "Computing the diagonal elements and inverse of a large numerator relationship matrix," Biometrics, Vol. 32, pp. 949–953, 1976.
 
-
-
-
